@@ -56,6 +56,7 @@ Available Commands:
 /commit - Latest commits of repo
 /yaap - Latest YAAP build for device
 /pixelos - PixelOS official device info
+/carbon - Generate Carbon code image
 
 """
     await update.message.reply_text(text)
@@ -631,6 +632,40 @@ async def pixelos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         await update.message.reply_text("Failed to fetch PixelOS device info.")
 
+async def carbon(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    code = None
+
+    # if replying to a message
+    if update.message.reply_to_message:
+        code = update.message.reply_to_message.text
+
+    # if text provided
+    elif context.args:
+        code = " ".join(context.args)
+
+    if not code:
+        await update.message.reply_text(
+            "Usage:\n/carbon <code>\nor reply to a message with /carbon"
+        )
+        return
+
+    url = "https://carbonara.solopov.dev/api/cook"
+
+    try:
+        r = requests.post(url, json={"code": code})
+
+        if r.status_code != 200:
+            raise Exception("Failed")
+
+        img = BytesIO(r.content)
+        img.name = "carbon.png"
+
+        await update.message.reply_photo(img)
+
+    except Exception:
+        await update.message.reply_text("Failed to generate Carbon image.")
+
 # Main
 def main():
 
@@ -659,6 +694,7 @@ def main():
     app.add_handler(CommandHandler("commit", commit))
     app.add_handler(CommandHandler("yaap", yaap))
     app.add_handler(CommandHandler("pixelos", pixelos))
+    app.add_handler(CommandHandler("carbon", carbon))
 
     print("Bot running...")
     app.run_polling()
