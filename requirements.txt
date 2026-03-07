@@ -1,0 +1,8 @@
+python-telegram-bot>=21.0
+requests
+psutil
+python-whois
+google-search-results
+qrcode[pil]
+beautifulsoup4
+lxml
