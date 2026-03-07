@@ -591,26 +591,32 @@ async def pixelos(update: Update, context: ContextTypes.DEFAULT_TYPE):
         download_link = data.get("download_link")
         archive_link = data.get("archive")
 
-        maintainer_name = "Unknown"
-        maintainer_tg = None
+        maintainers_text = ""
 
-        if "maintainer" in data and data["maintainer"]:
-            maintainer_name = data["maintainer"][0].get("display_name", "Unknown")
-            maintainer_tg = data["maintainer"][0].get("telegram")
+        maintainers = data.get("maintainer", [])
 
-        if maintainer_tg:
-            maintainer_text = f'<a href="https://t.me/{maintainer_tg}">{maintainer_name}</a>'
+        if maintainers:
+            for m in maintainers:
+                name = m.get("display_name", "Unknown")
+                tg = m.get("telegram")
+
+                if tg:
+                    maintainers_text += f'• <a href="https://t.me/{tg}">{name}</a>\n'
+                else:
+                    maintainers_text += f'• {name}\n'
         else:
-            maintainer_text = maintainer_name
+            maintainers_text = "Unknown"
 
         text = f"""
 <b>PixelOS Device Information</b>
 
-📱 <b>Model:</b> {model}
-🔧 <b>Codename:</b> {codename}
-🧩 <b>Version:</b> {version}
-🗓 <b>Last Updated:</b> {last_updated}
-👤 <b>Maintainer:</b> {maintainer_text}
+<b>Model:</b> {model}
+<b>Codename:</b> {codename}
+<b>Version:</b> {version}
+<b>Last Updated:</b> {last_updated}
+
+<b>Maintainers:</b>
+{maintainers_text}
 """
 
         buttons = []
