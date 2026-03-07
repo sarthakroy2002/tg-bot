@@ -55,6 +55,7 @@ Available Commands:
 /repo - GitHub repo search
 /commit - Latest commits of repo
 /yaap - Latest YAAP build for device
+/pixelos - PixelOS official device info
 
 """
     await update.message.reply_text(text)
@@ -561,6 +562,75 @@ Latest YAAP Releases for {device} ({date})
     except Exception:
         await update.message.reply_text("Failed to fetch YAAP build information.")
 
+async def pixelos(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if not context.args:
+        await update.message.reply_text("Usage: /pixelos <device codename>")
+        return
+
+    device = context.args[0]
+
+    url = f"https://raw.githubusercontent.com/PixelOS-AOSP/official_devices/refs/heads/sixteen/API/devices/{device}.json"
+
+    try:
+        r = requests.get(url)
+
+        if r.status_code != 200:
+            await update.message.reply_text("Device not found in PixelOS official list.")
+            return
+
+        data = r.json()
+
+        model = data.get("model", "Unknown")
+        codename = data.get("codename", device)
+        version = data.get("version", "Unknown")
+        last_updated = data.get("last_updated", "Unknown")
+
+        download_link = data.get("download_link")
+        archive_link = data.get("archive")
+
+        maintainer_name = "Unknown"
+        maintainer_tg = None
+
+        if "maintainer" in data and data["maintainer"]:
+            maintainer_name = data["maintainer"][0].get("display_name", "Unknown")
+            maintainer_tg = data["maintainer"][0].get("telegram")
+
+        if maintainer_tg:
+            maintainer_text = f'<a href="https://t.me/{maintainer_tg}">{maintainer_name}</a>'
+        else:
+            maintainer_text = maintainer_name
+
+        text = f"""
+<b>PixelOS Device Information</b>
+
+📱 <b>Model:</b> {model}
+🔧 <b>Codename:</b> {codename}
+🧩 <b>Version:</b> {version}
+🗓 <b>Last Updated:</b> {last_updated}
+👤 <b>Maintainer:</b> {maintainer_text}
+"""
+
+        buttons = []
+
+        if download_link:
+            buttons.append([InlineKeyboardButton("⬇️ Download", url=download_link)])
+
+        if archive_link:
+            buttons.append([InlineKeyboardButton("📦 Archive", url=archive_link)])
+
+        keyboard = InlineKeyboardMarkup(buttons)
+
+        await update.message.reply_text(
+            text,
+            parse_mode="HTML",
+            reply_markup=keyboard,
+            disable_web_page_preview=True
+        )
+
+    except Exception:
+        await update.message.reply_text("Failed to fetch PixelOS device info.")
+
 # Main
 def main():
 
@@ -588,6 +658,7 @@ def main():
     app.add_handler(CommandHandler("repo", repo))
     app.add_handler(CommandHandler("commit", commit))
     app.add_handler(CommandHandler("yaap", yaap))
+    app.add_handler(CommandHandler("pixelos", pixelos))
 
     print("Bot running...")
     app.run_polling()
