@@ -5,7 +5,7 @@ import socket
 import psutil
 import requests
 import whois
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from serpapi import GoogleSearch
 import qrcode
@@ -54,6 +54,7 @@ Available Commands:
 /ip - IP lookup
 /repo - GitHub repo search
 /commit - Latest commits of repo
+/yaap - Latest YAAP build for device
 
 """
     await update.message.reply_text(text)
@@ -507,6 +508,59 @@ async def commit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         disable_web_page_preview=True
     )
 
+def get_date(filename):
+    if filename.endswith(".zip"):
+        date = filename.split("-")[-1].replace(".zip", "")
+        if len(date) == 8:
+            return f"{date[:4]}-{date[4:6]}-{date[6:]}"
+    return None
+
+
+async def yaap(update, context):
+
+    if not context.args:
+        await update.message.reply_text("Provide a device codename!\nUsage: /yaap <device>")
+        return
+
+    device = context.args[0]
+
+    try:
+        # get OTA branches
+        branch_url = f"https://raw.githubusercontent.com/YAAP/device-info/master/{device}/{device}.json"
+        branch_data = requests.get(branch_url).json()
+
+        gapps_branch = branch_data["ota-branch"]
+        vanilla_branch = branch_data["ota-branch-vanilla"]
+
+        # fetch build info
+        gapps_url = f"https://raw.githubusercontent.com/YAAP/ota-info/{gapps_branch}/{device}/{device}.json"
+        vanilla_url = f"https://raw.githubusercontent.com/YAAP/ota-info/{vanilla_branch}/{device}/{device}.json"
+
+        gapps_data = requests.get(gapps_url).json()
+        vanilla_data = requests.get(vanilla_url).json()
+
+        gapps_filename = gapps_data["response"][0]["filename"]
+        vanilla_filename = vanilla_data["response"][0]["filename"]
+
+        date = get_date(gapps_filename) or get_date(vanilla_filename) or "Unknown"
+
+        text = f"""
+Latest YAAP Releases for {device} ({date})
+"""
+
+        gapps_link = f"https://mirror.codebucket.de/yaap/{device}/{gapps_filename}"
+        vanilla_link = f"https://mirror.codebucket.de/yaap/{device}/vanilla/{vanilla_filename}"
+
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("GApps", url=gapps_link)],
+            [InlineKeyboardButton("Vanilla", url=vanilla_link)]
+        ])
+
+        await update.message.reply_text(text, reply_markup=keyboard)
+
+    except Exception:
+        await update.message.reply_text("Failed to fetch YAAP build information.")
+
 # Main
 def main():
 
@@ -533,6 +587,7 @@ def main():
     app.add_handler(CommandHandler("ip", ip))
     app.add_handler(CommandHandler("repo", repo))
     app.add_handler(CommandHandler("commit", commit))
+    app.add_handler(CommandHandler("yaap", yaap))
 
     print("Bot running...")
     app.run_polling()
