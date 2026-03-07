@@ -57,6 +57,7 @@ Available Commands:
 /yaap - Latest YAAP build for device
 /pixelos - PixelOS official device info
 /carbon - Generate Carbon code image
+/todo - check all todos
 
 """
     await update.message.reply_text(text)
@@ -666,6 +667,95 @@ async def carbon(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         await update.message.reply_text("Failed to generate Carbon image.")
 
+def get_superadmin():
+    try:
+        with open(".admin", "r") as f:
+            return int(f.read().strip())
+    except:
+        return None
+
+
+def read_todos():
+    try:
+        with open("todo.txt", "r") as f:
+            return [line.strip() for line in f if line.strip()]
+    except:
+        return []
+
+
+def write_todos(tasks):
+    with open("todo.txt", "w") as f:
+        for task in tasks:
+            f.write(task + "\n")
+
+async def todo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user_id = update.effective_user.id
+    superadmin = get_superadmin()
+
+    tasks = read_todos()
+
+    # SHOW TODO LIST
+    if not context.args:
+        if not tasks:
+            await update.message.reply_text("TODO list is empty.")
+            return
+
+        text = "TODO List\n\n"
+
+        for i, task in enumerate(tasks, start=1):
+            text += f"{i}. {task}\n"
+
+        await update.message.reply_text(text)
+        return
+
+    cmd = context.args[0]
+
+    # ADD TASK
+    if cmd == "add":
+
+        if user_id != superadmin:
+            await update.message.reply_text("Only superadmin can add tasks.")
+            return
+
+        task = " ".join(context.args[1:])
+
+        if not task:
+            await update.message.reply_text("Usage: /todo add <task>")
+            return
+
+        tasks.append(task)
+        write_todos(tasks)
+
+        await update.message.reply_text("Task added.")
+        return
+
+    # MARK DONE
+    if cmd == "done":
+
+        if user_id != superadmin:
+            await update.message.reply_text("Only superadmin can remove tasks.")
+            return
+
+        if len(context.args) < 2:
+            await update.message.reply_text("Usage: /todo done <task number>")
+            return
+
+        try:
+            num = int(context.args[1]) - 1
+        except:
+            await update.message.reply_text("Invalid number.")
+            return
+
+        if num < 0 or num >= len(tasks):
+            await update.message.reply_text("Task number not found.")
+            return
+
+        removed = tasks.pop(num)
+        write_todos(tasks)
+
+        await update.message.reply_text(f"Completed: {removed}")
+
 # Main
 def main():
 
@@ -695,6 +785,7 @@ def main():
     app.add_handler(CommandHandler("yaap", yaap))
     app.add_handler(CommandHandler("pixelos", pixelos))
     app.add_handler(CommandHandler("carbon", carbon))
+    app.add_handler(CommandHandler("todo", todo))
 
     print("Bot running...")
     app.run_polling()
