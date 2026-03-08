@@ -26,6 +26,10 @@ def get_serpapi():
     with open(".serpapi", "r") as f:
         return f.read().strip()
 
+def get_github_token():
+    with open(".github_token") as f:
+        return f.read().strip()
+
 TOKEN = get_token()
 
 # /start
@@ -64,6 +68,7 @@ Available Commands:
 /wiki - Search Wikipedia
 /calc - Calculator
 /yearleft - Year progress and remaining time
+/dump - Dump firmware
 
 """
     await update.message.reply_text(text)
@@ -896,6 +901,48 @@ async def yearleft(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(text, parse_mode="HTML")
 
+async def dump(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    user_id = update.effective_user.id
+    admin = get_superadmin()
+
+    if user_id != admin:
+        await update.message.reply_text("Only superadmin can trigger dumps.")
+        return
+
+    if not context.args:
+        await update.message.reply_text("Usage: /dump <firmware link>")
+        return
+
+    link = context.args[0]
+
+    token = get_github_token()
+
+    url = "https://api.github.com/repos/sarthakroy2002/Dumpr-Workflow/actions/workflows/dumper.yml/dispatches"
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json"
+    }
+
+    payload = {
+        "ref": "main",
+        "inputs": {
+            "link": link
+        }
+    }
+
+    r = requests.post(url, json=payload, headers=headers)
+
+    if r.status_code == 204:
+        await update.message.reply_text(
+            "🚀 Dumper workflow triggered.\n\n"
+            "Check status:\n"
+            "https://github.com/sarthakroy2002/Dumpr-Workflow/actions"
+        )
+    else:
+        await update.message.reply_text("Failed to trigger workflow.")
+
 # Main
 def main():
 
@@ -929,6 +976,7 @@ def main():
     app.add_handler(CommandHandler("wiki", wiki))
     app.add_handler(CommandHandler("calc", calc))
     app.add_handler(CommandHandler("yearleft", yearleft))
+    app.add_handler(CommandHandler("dump", dump))
 
     print("Bot running...")
     app.run_polling()
