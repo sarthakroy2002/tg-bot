@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 import subprocess
 import math
 import re
+from datetime import datetime
 
 def get_token():
     with open(".tg_token", "r") as f:
@@ -62,6 +63,7 @@ Available Commands:
 /todo - check all todos
 /wiki - Search Wikipedia
 /calc - Calculator
+/yearleft - Year progress and remaining time
 
 """
     await update.message.reply_text(text)
@@ -855,6 +857,45 @@ async def calc(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         await update.message.reply_text("Invalid calculation.")
 
+# Time left in year
+async def yearleft(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    now = datetime.now()
+
+    start = datetime(now.year, 1, 1)
+    end = datetime(now.year + 1, 1, 1)
+
+    total_seconds = (end - start).total_seconds()
+    passed_seconds = (now - start).total_seconds()
+    remaining_seconds = (end - now).total_seconds()
+
+    percent = (passed_seconds / total_seconds) * 100
+
+    days = int(remaining_seconds // 86400)
+    months = days // 30
+    minutes = int(remaining_seconds // 60)
+    seconds = int(remaining_seconds)
+
+    # progress bar
+    bar_length = 20
+    filled = int(percent / 100 * bar_length)
+    bar = "█" * filled + "░" * (bar_length - filled)
+
+    text = f"""
+📅 <b>{now.year} Progress</b>
+
+{bar}
+{percent:.2f}% completed
+
+<b>⏳ Time Left</b>
+{months} months
+{days} days
+{minutes} minutes
+{seconds} seconds
+"""
+
+    await update.message.reply_text(text, parse_mode="HTML")
+
 # Main
 def main():
 
@@ -887,6 +928,7 @@ def main():
     app.add_handler(CommandHandler("todo", todo))
     app.add_handler(CommandHandler("wiki", wiki))
     app.add_handler(CommandHandler("calc", calc))
+    app.add_handler(CommandHandler("yearleft", yearleft))
 
     print("Bot running...")
     app.run_polling()
