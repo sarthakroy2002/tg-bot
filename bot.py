@@ -14,6 +14,8 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timezone
 import subprocess
+import math
+import re
 
 def get_token():
     with open(".tg_token", "r") as f:
@@ -59,6 +61,7 @@ Available Commands:
 /carbon - Generate Carbon code image
 /todo - check all todos
 /wiki - Search Wikipedia
+/calc - Calculator
 
 """
     await update.message.reply_text(text)
@@ -807,6 +810,51 @@ async def wiki(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         await update.message.reply_text("Failed to fetch Wikipedia article.")
 
+# Calculator
+allowed_names = {
+    "sqrt": math.sqrt,
+    "sin": math.sin,
+    "cos": math.cos,
+    "tan": math.tan,
+    "log": math.log,
+    "pi": math.pi,
+    "e": math.e
+}
+
+def safe_eval(expr):
+
+    expr = expr.replace("^", "**")
+
+    code = compile(expr, "<calc>", "eval")
+
+    for name in code.co_names:
+        if name not in allowed_names:
+            raise NameError(f"{name} not allowed")
+
+    return eval(code, {"__builtins__": {}}, allowed_names)
+
+
+async def calc(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if not context.args:
+        await update.message.reply_text(
+            "Usage: /calc <expression>\nExample: /calc (5+3)*10"
+        )
+        return
+
+    expr = " ".join(context.args)
+
+    try:
+        result = safe_eval(expr)
+
+        await update.message.reply_text(
+            f" <b>{expr}</b>\n= <code>{result}</code>",
+            parse_mode="HTML"
+        )
+
+    except Exception:
+        await update.message.reply_text("Invalid calculation.")
+
 # Main
 def main():
 
@@ -838,6 +886,7 @@ def main():
     app.add_handler(CommandHandler("carbon", carbon))
     app.add_handler(CommandHandler("todo", todo))
     app.add_handler(CommandHandler("wiki", wiki))
+    app.add_handler(CommandHandler("calc", calc))
 
     print("Bot running...")
     app.run_polling()
