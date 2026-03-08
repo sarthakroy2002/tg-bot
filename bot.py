@@ -58,6 +58,7 @@ Available Commands:
 /pixelos - PixelOS official device info
 /carbon - Generate Carbon code image
 /todo - check all todos
+/wiki - Search Wikipedia
 
 """
     await update.message.reply_text(text)
@@ -762,6 +763,50 @@ async def todo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await update.message.reply_text(f"Completed: {removed}")
 
+async def wiki(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if not context.args:
+        await update.message.reply_text("Usage: /wiki <search term>")
+        return
+
+    query = " ".join(context.args)
+
+    try:
+        url = "https://en.wikipedia.org/api/rest_v1/page/summary/" + query
+
+        r = requests.get(url)
+
+        if r.status_code != 200:
+            await update.message.reply_text("No Wikipedia page found.")
+            return
+
+        data = r.json()
+
+        title = data.get("title", query)
+        summary = data.get("extract", "No summary available.")
+        page_url = data.get("content_urls", {}).get("desktop", {}).get("page")
+
+        text = f"""
+<b>{title}</b>
+
+{summary}
+
+🔗 <a href="{page_url}">Read full article</a>
+"""
+
+        # telegram message limit protection
+        if len(text) > 4000:
+            text = text[:3900] + "..."
+
+        await update.message.reply_text(
+            text,
+            parse_mode="HTML",
+            disable_web_page_preview=True
+        )
+
+    except Exception:
+        await update.message.reply_text("Failed to fetch Wikipedia article.")
+
 # Main
 def main():
 
@@ -792,6 +837,7 @@ def main():
     app.add_handler(CommandHandler("pixelos", pixelos))
     app.add_handler(CommandHandler("carbon", carbon))
     app.add_handler(CommandHandler("todo", todo))
+    app.add_handler(CommandHandler("wiki", wiki))
 
     print("Bot running...")
     app.run_polling()
